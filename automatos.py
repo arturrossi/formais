@@ -83,17 +83,17 @@ class AFD:
 
 
     #transforma estados de tamanho maior que 1 em apenas um só, concatenando-os, por exemplo [['q2'], ['q3']] em ['q2q3']
-    def concatena_estados_transicoes(self):
-        for item,value in self.dicionario_transicoes_afd.items():
+    def concatena_estados_transicoes(self, dicionario):
+        for item,value in dicionario.items():
             if len(value) > 1:
                 retorna_maior(value)
                 junta_estados = ''.join(value)
-                self.dicionario_transicoes_afd[item] = [junta_estados]
+                dicionario[item] = [junta_estados]
             if len(item[0][0]) > 1:
                 item_aux = list(item[0])
                 retorna_maior(item_aux)
                 junta_estados = ''.join(item_aux)
-                self.dicionario_transicoes_afd[(junta_estados, item[1])] = self.dicionario_transicoes_afd.pop(item)
+                dicionario[(junta_estados, item[1])] = dicionario.pop(item)
 
     def funcao_total(self):
         estado_aux = 'qaux'
@@ -114,48 +114,88 @@ class AFD:
 
 
     def minimizar_afd(self):
-        self.concatena_estados_transicoes()
+        self.concatena_estados_transicoes(self.dicionario_transicoes_afd)
         concatena_estados_lista(self.estados_visitados)
         concatena_estados_lista(self.finais)
-        self.funcao_total()
 
-        #print(self.dicionario_transicoes_afd)
-        #print(self.estados_visitados)
-        #print(self.finais)
+        nao_total = 0
+
+        for item in self.dicionario_transicoes_afd.items():
+            for simbolo in self.alfabeto:
+                if self.dicionario_transicoes_afd.get((item[0][0], simbolo)) is None:
+                    nao_total = 1
+
+        if nao_total:
+            self.funcao_total()
 
         tabela = {}
 
         for i,item in enumerate(self.estados_visitados):
             for item_2 in self.estados_visitados[i+1:]:
-                tabela[(tuple(item), tuple(item_2))] = (item in self.finais) and (item_2 not in self.finais)
+                tabela[(item[0], item_2[0])] = (item not in self.finais) and (item_2 in self.finais)
+                #as vezes da certo com "(item in self.finais) and (item_2 not in self.finais)"
+                #quando o ultimo estado listado for final, entao "(item not in self.finais) and (item_2 in self.finais)"??
 
         print(tabela)
-
         flag = True
-
-
-        #print(tabela)
 
         while flag:
             flag = False
-
             for i, item in enumerate(self.estados_visitados):
                 for item_2 in self.estados_visitados[i+1:]:
-                    if tabela[(tuple(item), tuple(item_2))]:
+                    if tabela[(item[0], item_2[0])]:
+                        #print('oi')
                         continue
                     for simbolo in self.alfabeto:
                         transicao1 = self.dicionario_transicoes_afd.get((item[0], simbolo))
                         transicao2 = self.dicionario_transicoes_afd.get((item_2[0], simbolo))
-                        #print(item[0], simbolo, transicao1)
-                        #print(item_2[0], simbolo, transicao2)
-                        marca = tabela.get((tuple(transicao1), tuple(transicao2)))
+
+
                         #q2q3 deu false quando era o segundo parametro
-                        if transicao1 != transicao2 and marca is not None:
-                            #print(item, simbolo, transicao1, item_2, simbolo, transicao2, marca)
+                        if transicao1 is not None and transicao2 is not None and transicao1 != transicao2:
+                            marca = tabela.get((transicao1[0], transicao2[0]))
+                            if marca is None:
+                                marca = tabela.get((transicao2[0], transicao1[0]))
+
                             flag = flag or marca
-                            tabela[(tuple(item), tuple(item_2))] = marca
+                            tabela[(item[0], item_2[0])] = marca
 
                             if marca:
                                 break
-       #print(self.dicionario_transicoes_afd)
+
+        novos_estados = []
+
+        for item,value in tabela.items():
+            if not value:
+                novos_estados.append(item)
+
+        novos_estados_finais = []
+
+        for estados in novos_estados:
+            for estado in estados:
+                if estado in self.finais:
+                    novos_estados_finais.append(estado)
+
+
+        tabela_final_transicoes = {}
+
+        for estados in novos_estados:
+            for estado in estados:
+                for simbolo in self.alfabeto:
+                    if self.dicionario_transicoes_afd[(estado, simbolo)]:
+                        tabela_final_transicoes[estados,simbolo] = self.dicionario_transicoes_afd[(estado, simbolo)]
+
+
+        for itens in self.dicionario_transicoes_afd.items():
+            for estados in tabela_final_transicoes:
+                if itens[0][0] != estados[0][0] and itens[0][0] != estados[0][1]:
+                        print(itens[0][0])
+
+
+
+        print(tabela_final_transicoes)
+        self.concatena_estados_transicoes(tabela_final_transicoes)
+        print(self.dicionario_transicoes_afd)
+        print(tabela_final_transicoes)
+
         print(tabela)
