@@ -1,4 +1,4 @@
-AUT�MATO=({q0,q1,q2,q3},{a,b},q0,{q1,q3})
+AUT�MATO=({q0,q1,q2,q3},{a,b},q0,{q0})
 Prog
 (q0,a)=q1
 (q0,b)=q2

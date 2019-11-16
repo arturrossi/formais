@@ -1,7 +1,7 @@
 import arquivo
 import automatos
 
-with open('teste2.txt', 'rt') as file:
+with open('teste3.txt', 'rt') as file:
     linhas = file.readlines()
 
 
