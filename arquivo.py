@@ -22,3 +22,10 @@ def extrai_listas_transicoes(linha):
         lista.append(estado_destino_transicao)
         lista_final.append(lista)
     return lista_final
+
+
+def extrai_palavras(reader):
+    lista_palavras = []
+    for coluna in reader:
+        lista_palavras.append(coluna)
+    return lista_palavras
