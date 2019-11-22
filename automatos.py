@@ -1,6 +1,7 @@
 import collections
 import itertools
 import copy
+import string
 
 class AFN:
     def __init__(self):
@@ -48,6 +49,7 @@ def concatena_estados_lista(lista):
 
 #transforma estados de tamanho maior que 1 em apenas um só, concatenando-os, por exemplo [['q2'], ['q3']] em ['q2q3']
 def concatena_estados_transicoes(dicionario):
+    auxiliar = {}
     for item,value in dicionario.items():
         if len(value) > 1:
             retorna_maior(value)
@@ -57,9 +59,10 @@ def concatena_estados_transicoes(dicionario):
             item_aux = list(item[0])
             retorna_maior(item_aux)
             junta_estados = ''.join(item_aux)
-            dicionario[(junta_estados, item[1])] = dicionario.pop(item)
+            auxiliar[item] = (junta_estados, item[1])
 
-
+    for velho, novo in auxiliar.items():
+        dicionario[novo] = dicionario.pop(velho)
 
 class AFD:
     def __init__(self):
@@ -68,14 +71,31 @@ class AFD:
         self.dicionario_transicoes_afd = {}
         self.alfabeto = []
         self.estados_visitados = []
+        self.transicoes = []
+
+    def define_afd(self, lista, transicoes):
+        self.estados_visitados = lista[0]
+        self.alfabeto = lista[1]
+        self.inicial = lista[2]
+        self.finais = lista[3]
+
+        for elemento in transicoes:
+            estado_inicial = elemento[0]
+            letra_transicao = elemento[1]
+            estado_destino = elemento[2]
+            funcao_transicao = (estado_inicial, letra_transicao, estado_destino)
+            self.transicoes.append(funcao_transicao)
+
+        for elemento in self.transicoes:
+            self.dicionario_transicoes_afd[(elemento[0], elemento[1])] = [elemento[2]]
 
 
     def converter_afn_para_afd(self, afn):
         self.alfabeto = afn.alfabeto
         self.inicial = afn.inicial
 
-        #adiciona q0 aos estados visitados
-        self.estados_visitados.append(['q0'])
+        #adiciona inicial aos estados visitados
+        self.estados_visitados.append(self.inicial)
 
         for estado in self.estados_visitados:
             numero_estados = len(estado)
@@ -91,11 +111,13 @@ class AFD:
                     lista_final = []
                     for estados in estado:
                         if (estados, simbolo) in afn.dicionario_transicoes_afn:
-                            lista_aux.extend(afn.dicionario_transicoes_afn[(estados, simbolo)])
-                    lista_final.extend(list(set(lista_aux).union(lista_aux)))
-                    self.dicionario_transicoes_afd[(tuple(estado), simbolo)] = lista_final
-                    if estado not in self.estados_visitados:
-                        self.estados_visitados.append(lista_final)
+                            novo = afn.dicionario_transicoes_afn[(estados, simbolo)]
+                            lista_aux.extend(novo)
+                    if lista_aux:
+                        lista_final.extend(list(set(lista_aux).union(lista_aux)))
+                        self.dicionario_transicoes_afd[(tuple(estado), simbolo)] = lista_final
+                        if novo not in self.estados_visitados:
+                            self.estados_visitados.append(lista_final)
 
         for estados in afn.finais:
             for estado in self.estados_visitados:
@@ -109,16 +131,16 @@ class AFD:
         self.estados_visitados.append([estado_aux])
         for simbolos in self.alfabeto:
             self.dicionario_transicoes_afd[(estado_aux, simbolos)] = [estado_aux]
-
         lista_aux = []
 
-        for item in self.dicionario_transicoes_afd.items():
+        for estados in self.estados_visitados:
             for simbolo in self.alfabeto:
-                if self.dicionario_transicoes_afd.get((item[0][0], simbolo)) is None:
-                    lista_aux.append([(item[0][0], simbolo, estado_aux)])
+                if (estados[0], simbolo) not in self.dicionario_transicoes_afd:
+                    lista_aux.append([(estados[0], simbolo, estado_aux)])
 
         for itens in lista_aux:
             self.dicionario_transicoes_afd[(itens[0][0], itens [0][1])] = [itens[0][2]]
+
 
     def remove_estados_inalcancaveis(self):
         g = collections.defaultdict(list)
@@ -160,17 +182,16 @@ class AFD:
             for estado_final in estados_uteis:
                 for estado in self.estados_visitados:
                     for simbolo in self.alfabeto:
-                        transicao = self.dicionario_transicoes_afd[(estado, simbolo)]
-                        if transicao[0] == estado_final:
-                            M.append(estado)
+                        transicao = self.dicionario_transicoes_afd.get((estado, simbolo))
+                        if transicao is not None:
+                            if transicao[0] == estado_final:
+                                M.append(estado)
             antes = len(estados_uteis)
             estados_uteis = list(set(estados_uteis) | set(M))
             depois = len(estados_uteis)
             if depois > antes:
                 flag = True
 
-        print(estados_uteis, 'a')
-        print(self.estados_visitados)
 
         estados_inuteis = []
 
@@ -180,17 +201,19 @@ class AFD:
 
         dicionario_transicoes_final = copy.deepcopy(self.dicionario_transicoes_afd)
 
+        aux = {}
         for key,value in self.dicionario_transicoes_afd.items():
             for estado in estados_inuteis:
-                if estado in key or estado in value:
+                if estado in key:
                     del dicionario_transicoes_final[key]
+                else:
+                    if estado in value:
+                        del dicionario_transicoes_final[key]
 
 
         for estado in self.estados_visitados:
             if estado in estados_inuteis:
                 self.estados_visitados.remove(estado)
-
-        print(self.estados_visitados, 'visitados')
 
         return dicionario_transicoes_final
 
@@ -198,9 +221,10 @@ class AFD:
         concatena_estados_transicoes(self.dicionario_transicoes_afd)
         concatena_estados_lista(self.estados_visitados)
         concatena_estados_lista(self.finais)
+        print('AFN PRA AFD', self.dicionario_transicoes_afd)
 
         self.remove_estados_inalcancaveis()
-        print(self.dicionario_transicoes_afd)
+
 
         nao_total = 0
 
@@ -212,14 +236,13 @@ class AFD:
         if nao_total:
             self.funcao_total()
 
+        self.estados_visitados.sort()
 
         #inicializa a tabela, marcando aqueles itens em que ou o primeiro item é estado final ou o segundo
         tabela = {}
         for i,item in enumerate(self.estados_visitados):
             for item_2 in self.estados_visitados[i+1:]:
-                tabela[(item[0], item_2[0])] = (item in self.finais) and (item_2 not in self.finais) or (item not in self.finais) and (item_2 in self.finais)
-
-        print(tabela)
+                tabela[(item[0], item_2[0])] = ((item in self.finais) and (item_2 not in self.finais)) or ((item not in self.finais) and (item_2 in self.finais))
         flag = True
 
         #completa a tabela procurando estados equivalentes
@@ -228,7 +251,6 @@ class AFD:
             for i, item in enumerate(self.estados_visitados):
                 for item_2 in self.estados_visitados[i+1:]:
                     if tabela[(item[0], item_2[0])]:
-                        #print('oi')
                         continue
                     for simbolo in self.alfabeto:
                         transicao1 = self.dicionario_transicoes_afd.get((item[0], simbolo))
@@ -247,35 +269,37 @@ class AFD:
                             if marca:
                                 break
 
+        print('TABELA FINAL:', tabela)
+
         novos_estados = []
         #cria uma lista com os novos estados, ou seja, aqueles estados que resultaram em falso (que nao foram marcados na tabela)
         for item,value in tabela.items():
             if not value:
                 novos_estados.append(item)
 
-
         #transforma lista de tuplas pra lista de listas
         novos_estados = list(map(list, novos_estados))
-        print(novos_estados)
+        print('NOVOS ESTADOS:', novos_estados)
 
 
         #junta os novos estados que englobam mais de um estado, por ex: [q2,q3], [q2,q4], [q3,q4] junta em [q2,q3,q4]
-        for i,dupla in enumerate(novos_estados):
-            for elemento in dupla:
-                for proximos in novos_estados[i+1:]:
-                    if elemento in proximos:
-                        if elemento is proximos[0]:
-                            if proximos[1] not in dupla:
-                                dupla.append(proximos[1])
-                                novos_estados.remove(proximos)
+        if len(novos_estados) > 1:
+            for i,dupla in enumerate(novos_estados):
+                for elemento in dupla:
+                    for proximos in novos_estados[i+1:]:
+                        if elemento in proximos:
+                            if elemento is proximos[0]:
+                                if proximos[1] not in dupla:
+                                    dupla.append(proximos[1])
+                                    novos_estados.remove(proximos)
+                                else:
+                                    novos_estados.remove(proximos)
                             else:
-                                novos_estados.remove(proximos)
-                        else:
-                            if proximos[0] not in dupla:
-                                dupla.append(proximos[0])
-                                novos_estados.remove(proximos)
-                            else:
-                                novos_estados.remove(proximos)
+                                if proximos[0] not in dupla:
+                                    dupla.append(proximos[0])
+                                    novos_estados.remove(proximos)
+                                else:
+                                    novos_estados.remove(proximos)
 
         novos_estados_finais = []
         # se algum dos estados antes da junçao era final, entao o novo estado é final também
@@ -303,6 +327,7 @@ class AFD:
             self.finais.append(novos_estados_finais)
             self.finais.sort()
 
+
         #deleta as transicoes dos estados iguais comecando do segundo em frente, por ex:
         #se [q2,q3,q4] sao apenas um estado, deixa apenas as transicoes do q2 e deleta as do q3 e q4
         for estados in novos_estados:
@@ -311,10 +336,10 @@ class AFD:
                 for simbolo in self.alfabeto:
                     del self.dicionario_transicoes_afd[(estado, simbolo)]
 
-
         #troca todas as ocorrencias dos novos estados nas origens das transicoes, por ex:
         #se um novo estado é [q0,q1] (os novos estados ja estarao ordenados em ordem crescente)
         #troca as ocorrencias de q0 para q0,q1 e nao troca as de q1 pois ja foram deletadas anteriormente
+        auxiliar = {}
         for estados in novos_estados:
             estado = estados[0]
             estados = tuple(estados)
@@ -322,7 +347,6 @@ class AFD:
                 if keys[0] is estado:
                     self.dicionario_transicoes_afd[(estados, keys[1])] = self.dicionario_transicoes_afd[keys]
                     del self.dicionario_transicoes_afd[keys]
-
 
         #troca todas as ocorrencias dos novos estados nos resultados das transicoes, por ex:
         #se um novo estado é [q0,q1] e existe uma transicao (q2,a) = [q0] ou [q1], troca a transicao para (q2,a) = [q0,q1]
@@ -340,19 +364,15 @@ class AFD:
                 todos_estados.append(key[0])
 
         self.estados_visitados = todos_estados
-
         dicionario_transicoes_final = self.remove_estados_inuteis()
 
         dicionario_transicoes_final = collections.OrderedDict(sorted(dicionario_transicoes_final.items()))
         self.dicionario_transicoes_afd = dicionario_transicoes_final
 
+        #ALGUMA COISA NA TABELA TA ESTRANHA
 
-        print(tabela)
-        print(self.finais)
-        print(novos_estados)
-        print(novos_estados_finais)
-        print(self.estados_visitados)
-        print(self.dicionario_transicoes_afd)
+        print('FINAIS:', self.finais)
+        print("AUTOMATO MINIMO:", self.dicionario_transicoes_afd)
 
     def avalia_palavras(self, palavras):
         teste_palavra = 'aaba'
@@ -381,4 +401,62 @@ class AFD:
                 if destino in self.finais:
                     palavras_aceitas.append(palavra[0])
 
-        print(palavras_aceitas)
+        palavras = list(itertools.chain(*palavras))
+
+        rejeitadas = set(palavras) - set(palavras_aceitas)
+        rejeitadas = list(rejeitadas)
+        print("ACEITA:", palavras_aceitas)
+        print("REJEITA:", rejeitadas)
+
+    def afd_pra_gramatica(self):
+        inicial = False
+        tabela_hash_estados_variaveis = {}
+        #cria uma tabela hash referenciado o estado à sua respectiva variavel
+        if self.estados_visitados[0] == self.inicial[0]:
+            tabela_hash_estados_variaveis[self.estados_visitados[0]] = 'S'
+            tamanho = len(self.estados_visitados)
+            i = 1
+            while i != tamanho:
+                tabela_hash_estados_variaveis[self.estados_visitados[i]] = string.ascii_letters[i-1].capitalize()
+                i += 1
+        else:
+            for i,estados in enumerate(self.estados_visitados):
+                j = i - 1
+                if estados == self.inicial[0]:
+                    tabela_hash_estados_variaveis[self.estados_visitados[i]] = 'S'
+                    inicial = True
+                else:
+                    if inicial:
+                        tabela_hash_estados_variaveis[self.estados_visitados[i]] = string.ascii_letters[j].capitalize()
+                    else:
+                        tabela_hash_estados_variaveis[self.estados_visitados[i]] = string.ascii_letters[i].capitalize()
+
+
+        aux = []
+        for values in tabela_hash_estados_variaveis.values():
+            aux.extend(values)
+
+
+        with open("saida_GR.txt", "w", encoding="utf-8") as f:
+            print('G = ({' + ', '.join(aux) + '}' ',' , '{' + ', '.join(self.alfabeto) + '},', tabela_hash_estados_variaveis[self.inicial[0]] +',', 'P)', file=f)
+            print('P', file=f)
+            keyList = sorted(self.dicionario_transicoes_afd.keys())
+            tamanho_lista = len(keyList)
+            for key, value in self.dicionario_transicoes_afd.items():
+                indice = keyList.index(key)
+                if indice + 1 <= tamanho_lista - 1:
+                    if keyList[indice+1][0] != key[0] and key[0] in self.finais:
+                        print(tabela_hash_estados_variaveis[key[0]], ' -> ', key[1], tabela_hash_estados_variaveis[value[0]], file=f)
+                        print(tabela_hash_estados_variaveis[key[0]], ' -> ' + '\u03b5', file=f)
+                    else:
+                        print(tabela_hash_estados_variaveis[key[0]], ' -> ', key[1], tabela_hash_estados_variaveis[value[0]], file=f)
+                else:
+                    print(tabela_hash_estados_variaveis[key[0]], ' -> ', key[1], tabela_hash_estados_variaveis[value[0]], file=f)
+                    if key[0] in self.finais:
+                        print(tabela_hash_estados_variaveis[key[0]], ' -> ' + '\u03b5', file=f)
+
+
+
+
+
+
