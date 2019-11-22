@@ -1,0 +1,14 @@
+GerenciadorPortaAutomatica=({q0,q1,q2,q3},{p,b,l,d,a,f},q0,{q0})
+Prog
+(q0,l)=q1
+(q1,b)=q1
+(q1,d)=q0
+(q1,a)=q3
+(q1,p)=q2
+(q2,d)=q0
+(q2,p)=q2
+(q2,b)=q1
+(q2,a)=q3
+(q3,b)=q3
+(q3,p)=q3
+(q3,f)=q1
