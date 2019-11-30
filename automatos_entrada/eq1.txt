@@ -1,0 +1,4 @@
+AUT?MATO=({s0,s1},{a},s0,{s0})
+Prog
+(s0,a)=s1
+(s1,a)=s0

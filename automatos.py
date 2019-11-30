@@ -221,7 +221,6 @@ class AFD:
         concatena_estados_transicoes(self.dicionario_transicoes_afd)
         concatena_estados_lista(self.estados_visitados)
         concatena_estados_lista(self.finais)
-        print('AFN PRA AFD', self.dicionario_transicoes_afd)
 
         self.remove_estados_inalcancaveis()
 
@@ -269,7 +268,6 @@ class AFD:
                             if marca:
                                 break
 
-        print('TABELA FINAL:', tabela)
 
         novos_estados = []
         #cria uma lista com os novos estados, ou seja, aqueles estados que resultaram em falso (que nao foram marcados na tabela)
@@ -279,7 +277,6 @@ class AFD:
 
         #transforma lista de tuplas pra lista de listas
         novos_estados = list(map(list, novos_estados))
-        print('NOVOS ESTADOS:', novos_estados)
 
 
         #junta os novos estados que englobam mais de um estado, por ex: [q2,q3], [q2,q4], [q3,q4] junta em [q2,q3,q4]
@@ -369,10 +366,11 @@ class AFD:
         dicionario_transicoes_final = collections.OrderedDict(sorted(dicionario_transicoes_final.items()))
         self.dicionario_transicoes_afd = dicionario_transicoes_final
 
-        #ALGUMA COISA NA TABELA TA ESTRANHA
 
-        print('FINAIS:', self.finais)
-        print("AUTOMATO MINIMO:", self.dicionario_transicoes_afd)
+        print('AUTOMATO MINIMO')
+        print("TRANSICOES:", self.dicionario_transicoes_afd)
+        print('ESTADOS FINAIS:', self.finais)
+        print("ESTADO INICIAL:", self.inicial)
 
     def avalia_palavras(self, palavras):
         teste_palavra = 'aaba'
@@ -436,8 +434,8 @@ class AFD:
         for values in tabela_hash_estados_variaveis.values():
             aux.extend(values)
 
-
-        with open("saida_GR.txt", "w", encoding="utf-8") as f:
+        #escreve no arquivo a Gramatica Regular
+        with open("saida_gramatica/saida_GR.txt", "w", encoding="utf-8") as f:
             print('G = ({' + ', '.join(aux) + '}' ',' , '{' + ', '.join(self.alfabeto) + '},', tabela_hash_estados_variaveis[self.inicial[0]] +',', 'P)', file=f)
             print('P', file=f)
             keyList = sorted(self.dicionario_transicoes_afd.keys())
@@ -447,7 +445,7 @@ class AFD:
                 if indice + 1 <= tamanho_lista - 1:
                     if keyList[indice+1][0] != key[0] and key[0] in self.finais:
                         print(tabela_hash_estados_variaveis[key[0]], ' -> ', key[1], tabela_hash_estados_variaveis[value[0]], file=f)
-                        print(tabela_hash_estados_variaveis[key[0]], ' -> ' + '\u03b5', file=f)
+                        print(tabela_hash_estados_variaveis[key[0]], ' -> ' + '\u03b5', file=f)  #\u03b5 é o unicode para o epsilon (movimento vazio) para terminar a Gramatica
                     else:
                         print(tabela_hash_estados_variaveis[key[0]], ' -> ', key[1], tabela_hash_estados_variaveis[value[0]], file=f)
                 else:
@@ -455,8 +453,102 @@ class AFD:
                     if key[0] in self.finais:
                         print(tabela_hash_estados_variaveis[key[0]], ' -> ' + '\u03b5', file=f)
 
+            for final in self.finais:
+                if final not in self.dicionario_transicoes_afd:
+                    print(tabela_hash_estados_variaveis[final], ' -> ' + '\u03b5', file=f)
 
 
 
+    def automato_complementar(self):
+        complementar = AFD()
+        nao_total = 0
+        for key in self.dicionario_transicoes_afd.keys():
+            for simbolo in self.alfabeto:
+                if self.dicionario_transicoes_afd.get((key[0], simbolo)) is None:
+                    nao_total = 1
+        if nao_total:
+            self.estados_visitados = [[estado] for estado in self.estados_visitados]
+            self.funcao_total()
+            self.estados_visitados = list(itertools.chain.from_iterable(self.estados_visitados))
 
+        complementar.dicionario_transicoes_afd = self.dicionario_transicoes_afd
+        complementar.alfabeto = self.alfabeto
+        complementar.estados_visitados = self.estados_visitados
+        complementar.inicial = self.inicial
+
+        for estado in self.estados_visitados:
+            if estado not in self.finais:
+                complementar.finais.append(estado)
+
+        return complementar
+
+
+    #faz interseccao de 2 automatos
+    def interseccao_automatos(self, afd):
+        novo_automato = AFD()
+
+        novo_automato.alfabeto = self.alfabeto
+
+        for estados in self.estados_visitados:
+            for estados_2 in afd.estados_visitados:
+                novo_automato.estados_visitados.append((estados,estados_2))
+
+        novo_automato.inicial = (self.inicial[0], afd.inicial[0])
+
+        for finais_1 in self.finais:
+            for finais_2 in afd.finais:
+                novo_automato.finais.append((finais_1, finais_2))
+
+
+        for estados in novo_automato.estados_visitados:
+            for simbolos in novo_automato.alfabeto:
+                novo_automato.dicionario_transicoes_afd[(estados, simbolos)] =\
+                    (self.dicionario_transicoes_afd.get((estados[0], simbolos)), afd.dicionario_transicoes_afd.get((estados[1], simbolos),))
+
+        return novo_automato
+
+    def uniao_automatos(self, afd):
+        novo_automato = AFD()
+
+        novo_automato.alfabeto = self.alfabeto
+
+        for estados in self.estados_visitados:
+            for estados_2 in afd.estados_visitados:
+                novo_automato.estados_visitados.append((estados, estados_2))
+                if estados in self.finais or estados_2 in afd.finais:
+                    novo_automato.finais.append((estados, estados_2))
+
+        novo_automato.inicial = (self.inicial, afd.inicial)
+
+        for estados in novo_automato.estados_visitados:
+            for simbolos in novo_automato.alfabeto:
+                novo_automato.dicionario_transicoes_afd[(estados, simbolos)] = \
+                    (self.dicionario_transicoes_afd.get((estados[0], simbolos)),
+                     afd.dicionario_transicoes_afd.get((estados[1], simbolos)))
+
+        for key,value in novo_automato.dicionario_transicoes_afd.items():
+            novo_value = []
+            for dupla in value:
+                dupla = tuple(list(itertools.chain.from_iterable(dupla)))
+                novo_value.append(dupla)
+            novo_value = tuple(novo_value)
+            novo_automato.dicionario_transicoes_afd[key] = novo_value
+
+        return novo_automato
+
+    def check_vazio(self):
+        aux = [self.inicial]
+        vazia = 1
+
+        for item in aux:
+         if vazia:
+                for simbolo in self.alfabeto:
+                    transicao = self.dicionario_transicoes_afd.get((item, simbolo))
+                    if transicao not in self.finais:
+                        if transicao not in aux:
+                            aux.append(transicao)
+                    else:
+                        vazia = 0
+
+        return vazia
 

@@ -1,0 +1,5 @@
+AUT?MATO=({t0,t1,t2},{a},t0,{t0})
+Prog
+(t0,a)=t1
+(t1,a)=t2
+(t2,a)=t0
