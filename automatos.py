@@ -141,7 +141,7 @@ class AFD:
         for itens in lista_aux:
             self.dicionario_transicoes_afd[(itens[0][0], itens [0][1])] = [itens[0][2]]
 
-
+    #recebe um automato e remove os estados inalcancaveis
     def remove_estados_inalcancaveis(self):
         g = collections.defaultdict(list)
 
@@ -170,6 +170,7 @@ class AFD:
 
         self.dicionario_transicoes_afd = {key:value for key,value in self.dicionario_transicoes_afd.items() if key[0] in estados_alcancaveis}
 
+    #recebe um automato e devolve as transicoes desse automato sem os estados inuteis
     def remove_estados_inuteis(self):
         estados_uteis = self.finais
         estados_uteis = list(itertools.chain(*estados_uteis))
@@ -200,7 +201,6 @@ class AFD:
                 estados_inuteis.append(estado)
 
         dicionario_transicoes_final = copy.deepcopy(self.dicionario_transicoes_afd)
-
         aux = {}
         for key,value in self.dicionario_transicoes_afd.items():
             for estado in estados_inuteis:
@@ -224,6 +224,7 @@ class AFD:
 
         self.remove_estados_inalcancaveis()
 
+        print(self.dicionario_transicoes_afd)
 
         nao_total = 0
 
@@ -388,7 +389,7 @@ class AFD:
             transicao = transicao_i
             if not palavra:
                 if self.inicial in self.finais:
-                    palavras_aceitas.append('palavra vazia')
+                    palavras_aceitas.append('palavra vazia') #trata o caso de aceitar a palavra vazia
             else:
                 for char in palavra[0]:
                     destino = self.dicionario_transicoes_afd.get((transicao[0], char))
@@ -396,12 +397,12 @@ class AFD:
                         transicao = destino
                     else:
                         break
-                if destino in self.finais:
+                if destino in self.finais: #se a ultima transicao for um estado final, entao aceita a palavra
                     palavras_aceitas.append(palavra[0])
 
         palavras = list(itertools.chain(*palavras))
 
-        rejeitadas = set(palavras) - set(palavras_aceitas)
+        rejeitadas = set(palavras) - set(palavras_aceitas) #rejeitadas sao todas as palavras menos as aceitas
         rejeitadas = list(rejeitadas)
         print("ACEITA:", palavras_aceitas)
         print("REJEITA:", rejeitadas)
@@ -436,7 +437,7 @@ class AFD:
 
         #escreve no arquivo a Gramatica Regular
         with open("saida_gramatica/saida_GR.txt", "w", encoding="utf-8") as f:
-            print('G = ({' + ', '.join(aux) + '}' ',' , '{' + ', '.join(self.alfabeto) + '},', tabela_hash_estados_variaveis[self.inicial[0]] +',', 'P)', file=f)
+            print('G = ({' + ', '.join(aux) + '}' ',' , '{' + ','.join(self.alfabeto) + '},', tabela_hash_estados_variaveis[self.inicial[0]] +',', 'P)', file=f)
             print('P', file=f)
             keyList = sorted(self.dicionario_transicoes_afd.keys())
             tamanho_lista = len(keyList)
@@ -444,21 +445,24 @@ class AFD:
                 indice = keyList.index(key)
                 if indice + 1 <= tamanho_lista - 1:
                     if keyList[indice+1][0] != key[0] and key[0] in self.finais:
-                        print(tabela_hash_estados_variaveis[key[0]], ' -> ', key[1], tabela_hash_estados_variaveis[value[0]], file=f)
-                        print(tabela_hash_estados_variaveis[key[0]], ' -> ' + '\u03b5', file=f)  #\u03b5 é o unicode para o epsilon (movimento vazio) para terminar a Gramatica
+                        print(tabela_hash_estados_variaveis[key[0]], '->', key[1], tabela_hash_estados_variaveis[value[0]], file=f)
+                        print(tabela_hash_estados_variaveis[key[0]], '-> ' + '\u03b5', file=f)  #\u03b5 é o unicode para o epsilon (movimento vazio) para terminar a Gramatica
                     else:
-                        print(tabela_hash_estados_variaveis[key[0]], ' -> ', key[1], tabela_hash_estados_variaveis[value[0]], file=f)
+                        print(tabela_hash_estados_variaveis[key[0]], '->', key[1], tabela_hash_estados_variaveis[value[0]], file=f)
                 else:
-                    print(tabela_hash_estados_variaveis[key[0]], ' -> ', key[1], tabela_hash_estados_variaveis[value[0]], file=f)
+                    print(tabela_hash_estados_variaveis[key[0]], '->', key[1], tabela_hash_estados_variaveis[value[0]], file=f)
                     if key[0] in self.finais:
-                        print(tabela_hash_estados_variaveis[key[0]], ' -> ' + '\u03b5', file=f)
+                        print(tabela_hash_estados_variaveis[key[0]], '->' + '\u03b5', file=f)
 
             for final in self.finais:
-                if final not in self.dicionario_transicoes_afd:
+                tem = 0
+                for item in keyList:
+                    if final == item[0]:
+                        tem = 1
+                if tem == 0:
                     print(tabela_hash_estados_variaveis[final], ' -> ' + '\u03b5', file=f)
 
-
-
+    #recebe um automato e devolve o seu automato complementar
     def automato_complementar(self):
         complementar = AFD()
         nao_total = 0
@@ -483,7 +487,7 @@ class AFD:
         return complementar
 
 
-    #faz interseccao de 2 automatos
+    #recebe dois automatos e devolve um automato que é a interseccao dos dois
     def interseccao_automatos(self, afd):
         novo_automato = AFD()
 
@@ -507,6 +511,7 @@ class AFD:
 
         return novo_automato
 
+    #recebe dois automatos e devolve um automato que é a uniao dos dois
     def uniao_automatos(self, afd):
         novo_automato = AFD()
 
@@ -529,8 +534,11 @@ class AFD:
         for key,value in novo_automato.dicionario_transicoes_afd.items():
             novo_value = []
             for dupla in value:
-                dupla = tuple(list(itertools.chain.from_iterable(dupla)))
-                novo_value.append(dupla)
+                if not any(map(lambda x: x is None, dupla)):
+                    dupla = tuple(list(itertools.chain.from_iterable(dupla)))
+                    novo_value.append(dupla)
+                else:
+                    pass
             novo_value = tuple(novo_value)
             novo_automato.dicionario_transicoes_afd[key] = novo_value
 

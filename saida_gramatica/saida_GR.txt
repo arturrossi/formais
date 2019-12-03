@@ -1,15 +1,15 @@
-G = ({S, A, B, C, D, E, F}, {a, b}, S, P)
+G = ({S, A, B, C, D, E, F}, {a,b}, S, P)
 P
-S  ->  a A
-S  ->  b D
-A  ->  a B
-A  ->  b C
-B  ->  a E
-B  ->  b E
-C  ->  a C
-C  ->  b C
-D  ->  a F
-D  ->  b B
-F  ->  a F
-F  ->  b F
+S -> a A
+S -> b D
+A -> a B
+A -> b C
+B -> a E
+B -> b E
+C -> a C
+C -> b C
+D -> a F
+D -> b B
+F -> a F
+F -> b F
 E  -> ε
